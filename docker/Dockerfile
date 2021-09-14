@@ -21,8 +21,6 @@ RUN apt-get install libhdf5-serial-dev hdf5-tools -y
 # Install MariaDB for slurm accounting (as the instructions state, change the password)
 RUN apt-get install mariadb-server -y
 
-COPY scripts/initialize-mariadb.sh /tmp/initialize-mariadb.sh
-
 RUN service mysql start
 RUN service munge start
 
@@ -45,6 +43,10 @@ RUN dpkg -i slurm-20.02.7_1.0_amd64.deb
 # Add the slurm user
 RUN useradd -m -u 1004 slurm
 
+#
+# TODO:  Need to add user 1000 (the user that submits jobs)
+#
+
 # Make runtime and conf directories
 RUN mkdir -p /etc/slurm /etc/slurm/prolog.d /etc/slurm/epilog.d /var/spool/slurm/ctld \
     /var/spool/slurm/d /var/log/slurm /var/run/slurm
@@ -64,7 +66,7 @@ RUN chown slurm /var/spool/slurm/ctld /var/spool/slurm/d /var/log/slurm /var/run
 RUN rm -rf slurm-20.02.7.tar.bz2
 RUN rm -rf slurm-20.02.7_1.0_amd64.deb
 
-COPY scripts/initialize-mariadb.sh initialize-mariadb.sh
+COPY scripts/initialize-mariadb.sql initialize-mariadb.sql
 COPY scripts/start-slurm-cluster.sh start-slurm-cluster.sh
 COPY conf/slurm.conf /etc/slurm/slurm.conf
 
