@@ -1,8 +1,10 @@
-FROM ubuntu:18.04
+FROM imaxt/owl-server:latest
 
 RUN DEBIAN_FRONTEND=noninteractive
 
 CMD ["/bin/bash"]
+
+USER root
 
 # Install all base dependencies
 RUN apt-get update && apt install sudo git gcc make ruby ruby-dev python3 \
@@ -21,31 +23,28 @@ RUN apt-get install libhdf5-serial-dev hdf5-tools -y
 # Install MariaDB for slurm accounting (as the instructions state, change the password)
 RUN apt-get install mariadb-server -y
 
-RUN service mysql start
-RUN service munge start
+# RUN service mysql start
+# RUN service munge start
 
-RUN mkdir /storage
+RUN mkdir /slurm
 
-WORKDIR /storage
+WORKDIR /slurm
 RUN wget https://download.schedmd.com/slurm/slurm-20.02.7.tar.bz2
 RUN tar xvf slurm-20.02.7.tar.bz2
-WORKDIR /storage/slurm-20.02.7
-RUN ./configure --prefix=/storage/slurm-build --sysconfdir=/etc/slurm --enable-pam \
+WORKDIR /slurm/slurm-20.02.7
+RUN ./configure --prefix=/slurm/slurm-build --sysconfdir=/etc/slurm --enable-pam \
     --with-pam_dir=/lib/x86_64-linux-gnu/security/ --without-shared-libslurm
 RUN make
 RUN make contrib
 RUN make install
 
-WORKDIR /storage
-RUN fpm -s dir -t deb -v 1.0 -n slurm-20.02.7 --prefix=/usr -C /storage/slurm-build .
+WORKDIR /slurm
+RUN fpm -s dir -t deb -v 1.0 -n slurm-20.02.7 --prefix=/usr -C /slurm/slurm-build .
 RUN dpkg -i slurm-20.02.7_1.0_amd64.deb
 
 # Add the slurm user
 RUN useradd -m -u 1004 slurm
-
-#
-# TODO:  Need to add user 1000 (the user that submits jobs)
-#
+RUN useradd -m -u 1000 user
 
 # Make runtime and conf directories
 RUN mkdir -p /etc/slurm /etc/slurm/prolog.d /etc/slurm/epilog.d /var/spool/slurm/ctld \
@@ -70,5 +69,8 @@ COPY scripts/initialize-mariadb.sql initialize-mariadb.sql
 COPY scripts/start-slurm-cluster.sh start-slurm-cluster.sh
 COPY conf/slurm.conf /etc/slurm/slurm.conf
 
-ENTRYPOINT bash start-slurm-cluster.sh
+WORKDIR /home/user
+USER user
+
+ENTRYPOINT bash /slurm/start-slurm-cluster.sh
 
